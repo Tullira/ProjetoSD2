@@ -1,0 +1,169 @@
+module FPGAtoLCD(
+	input clk,ONOFF,
+	input[7:0] A,B,
+	input SA,SB,
+	output reg [7:0] data,
+	output reg EN, RS, RW
+);
+
+initial begin
+	data = 0;
+	EN = 1;
+	RS = 0;
+	RW = 0;
+end
+
+
+parameter ONEMS = 50000, HALFMS = 25000;
+parameter WRITE = 0, WAIT = 1, OFF = 2;
+reg [31:0] counter = 0;
+reg state = OFF, ONOFF_anterior = 0;
+reg[3:0] digit;
+parameter sinalA = 2,centena_A=3,dezena_A=4,unidade_A=5,pula_cursor=6,sinalB = 7,centena_B=8,dezena_B=9,unidade_B=10;
+parameter END = 15;
+reg [3:0] instructions = 0;
+
+always @(posedge clk) begin
+	case (state)
+	OFF: begin
+		instructions <= 0;
+		counter <= 0;
+		if(ONOFF == 0 && ONOFF_anterior == 1) begin state <= WRITE; end 
+		//Se ele acabou de apertar o botao, vai pro estado WRITE
+		//Acabou de apertar o botao significa ONOFF = 0 e ONOFF_anterior = 1, pois houve uma mudança de estado
+		ONOFF_anterior <= ONOFF; // Atualiza ONOFF anteiror
+	end
+	WRITE: begin
+		if(ONOFF_anterior == 1 && ONOFF == 0) begin state <= OFF; end //Se o botao onoff for apertado, vai para OFF
+		else begin
+			if(counter == ONEMS) begin state <= WAIT; counter<= 0; EN <= 0; end
+			else counter<= counter + 1;
+		end
+		ONOFF_anterior <= ONOFF; //Atualiza onoff anterior
+	end
+	
+	WAIT: begin
+		if(ONOFF_anterior == 1 && ONOFF == 0) begin state <= OFF; end //Se o botao onoff for apertado, vai para OFF
+		else begin
+			if(counter == HALFMS) begin 
+				state <= WRITE; counter <= 0; EN <= 1;
+				if(instructions != END) 
+					instructions <= instructions + 1;
+				else
+					instructions <= 2;
+			end
+			else counter <= counter + 1;
+		end
+		ONOFF_anterior <= ONOFF; //Atualiza onoff anterior
+	end
+	endcase
+end
+
+always @(*) begin
+	case (instructions)
+		0: begin data = 8'b00000001; RS = 0; end
+		1: begin data = 8'b10000000; RS = 0; end
+		sinalA: 		begin
+			case(SA)
+			0:begin data = 8'b00101101; RS = 1; RW = 0; end
+			1:begin data = 8'b00100000; RS = 1; RW = 0; end
+			endcase
+		end
+		centena_A: 	begin	
+			case(A/100)
+			0:begin data=8'b00110000; RS = 1;RW = 0; end
+			1:begin data=8'b00110001; RS = 1;RW = 0; end
+			2:begin data=8'b00110010; RS = 1;RW = 0; end
+			3:begin data=8'b00110011; RS = 1;RW = 0; end
+			4:begin data=8'b00110100; RS = 1;RW = 0; end
+			5:begin data=8'b00110101; RS = 1;RW = 0; end
+			6:begin data=8'b00110110; RS = 1;RW = 0; end
+			7:begin data=8'b00110111; RS = 1;RW = 0; end
+			8:begin data=8'b00111000; RS = 1;RW = 0; end
+			9:begin data=8'b00111001; RS = 1;RW = 0; end  
+			endcase
+		end
+		dezena_A:	begin 
+			case((A/100)%10)
+			0:begin data=8'b00110000; RS = 1;RW = 0; end
+			1:begin data=8'b00110001; RS = 1;RW = 0; end
+			2:begin data=8'b00110010; RS = 1;RW = 0; end
+			3:begin data=8'b00110011; RS = 1;RW = 0; end
+			4:begin data=8'b00110100; RS = 1;RW = 0; end
+			5:begin data=8'b00110101; RS = 1;RW = 0; end
+			6:begin data=8'b00110110; RS = 1;RW = 0; end
+			7:begin data=8'b00110111; RS = 1;RW = 0; end
+			8:begin data=8'b00111000; RS = 1;RW = 0; end
+			9:begin data=8'b00111001; RS = 1;RW = 0; end  
+			endcase 
+		end
+		unidade_A:	begin 
+			case(A%10)
+			0:begin data=8'b00110000; RS = 1;RW = 0; end
+			1:begin data=8'b00110001; RS = 1;RW = 0; end
+			2:begin data=8'b00110010; RS = 1;RW = 0; end
+			3:begin data=8'b00110011; RS = 1;RW = 0; end
+			4:begin data=8'b00110100; RS = 1;RW = 0; end
+			5:begin data=8'b00110101; RS = 1;RW = 0; end
+			6:begin data=8'b00110110; RS = 1;RW = 0; end
+			7:begin data=8'b00110111; RS = 1;RW = 0; end
+			8:begin data=8'b00111000; RS = 1;RW = 0; end
+			9:begin data=8'b00111001; RS = 1;RW = 0; end  
+			endcase 
+		end
+		pula_cursor:begin 
+			data = 8'b10001101; 
+			RS = 1; 
+			end
+		sinalB: 		begin
+			case(SB)
+			0:begin data = 8'b00101101; RS = 1; RW = 0; end
+			1:begin data = 8'b00100000; RS = 1; RW = 0; end
+			endcase
+		end
+		centena_B:	begin 
+			case(B/100)
+			0:begin data=8'b00110000; RS = 1;RW = 0; end
+			1:begin data=8'b00110001; RS = 1;RW = 0; end
+			2:begin data=8'b00110010; RS = 1;RW = 0; end
+			3:begin data=8'b00110011; RS = 1;RW = 0; end
+			4:begin data=8'b00110100; RS = 1;RW = 0; end
+			5:begin data=8'b00110101; RS = 1;RW = 0; end
+			6:begin data=8'b00110110; RS = 1;RW = 0; end
+			7:begin data=8'b00110111; RS = 1;RW = 0; end
+			8:begin data=8'b00111000; RS = 1;RW = 0; end
+			9:begin data=8'b00111001; RS = 1;RW = 0; end  
+			endcase
+		end
+		dezena_B:	begin 
+			case((B/100)%10)
+			0:begin data=8'b00110000; RS = 1;RW = 0; end
+			1:begin data=8'b00110001; RS = 1;RW = 0; end
+			2:begin data=8'b00110010; RS = 1;RW = 0; end
+			3:begin data=8'b00110011; RS = 1;RW = 0; end
+			4:begin data=8'b00110100; RS = 1;RW = 0; end
+			5:begin data=8'b00110101; RS = 1;RW = 0; end
+			6:begin data=8'b00110110; RS = 1;RW = 0; end
+			7:begin data=8'b00110111; RS = 1;RW = 0; end
+			8:begin data=8'b00111000; RS = 1;RW = 0; end
+			9:begin data=8'b00111001; RS = 1;RW = 0; end  
+			endcase 
+		end
+		unidade_B:	begin 
+			case(B%10)
+			0:begin data=8'b00110000; RS = 1;RW = 0; end
+			1:begin data=8'b00110001; RS = 1;RW = 0; end
+			2:begin data=8'b00110010; RS = 1;RW = 0; end
+			3:begin data=8'b00110011; RS = 1;RW = 0; end
+			4:begin data=8'b00110100; RS = 1;RW = 0; end
+			5:begin data=8'b00110101; RS = 1;RW = 0; end
+			6:begin data=8'b00110110; RS = 1;RW = 0; end
+			7:begin data=8'b00110111; RS = 1;RW = 0; end
+			8:begin data=8'b00111000; RS = 1;RW = 0; end
+			9:begin data=8'b00111001; RS = 1;RW = 0; end  
+			endcase 
+		end
+		default: begin RS = 0; end
+	endcase
+end
+endmodule
